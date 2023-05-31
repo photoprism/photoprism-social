@@ -6,11 +6,10 @@ services:
     image: docker.io/postgres:15.3
     env_file: mastodon.prod.env
     restart: always
-    # shm_size: 256mb
     healthcheck:
       test: ['CMD', 'pg_isready', '-U', 'postgres']
     volumes:
-      - postgresql:/var/lib/postgresql/data
+      - /opt/mastodon/database/postgresql:/var/lib/postgresql/data
     networks:
       - internal_network
 
@@ -21,7 +20,7 @@ services:
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
     volumes:
-      - redis:/data
+      - /opt/mastodon/database/redis:/data
     networks:
       - internal_network
 
@@ -43,7 +42,7 @@ services:
     healthcheck:
       test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:3000/health || exit 1']
     volumes:
-      - uploads:/mastodon/public/system
+      - /opt/mastodon/web/system:/mastodon/public/system
 
   streaming:
     container_name: mastodon-streaming
@@ -80,26 +79,18 @@ services:
     healthcheck:
       test: ['CMD-SHELL', "ps aux | grep '[s]idekiq\ 6' || false"]
     volumes:
-      - uploads:/mastodon/public/system
+      - /opt/mastodon/web/system:/mastodon/public/system
+
+  tootctl:
+    container_name: tootctl
+    image: ghcr.io/mastodon/mastodon:v4.1.2@sha256:6b18e6d0eda476397d48cc36ac040b5da9c73503e374708a815a7f76db740576
+    env_file:
+      - mastodon.prod.env
+    command: bash -c "bundle exec bin/tootctl $*"
+    networks:
+      - internal_network
 
 networks:
   external_network:
   internal_network:
     internal: true
-
-volumes:
-  postgresql:
-    driver_opts:
-      type: none
-      device: /opt/mastodon/database/postgresql
-      o: bind
-  redis:
-    driver_opts:
-      type: none
-      device: /opt/mastodon/database/redis
-      o: bind
-  uploads:
-    driver_opts:
-      type: none
-      device: /opt/mastodon/web/system
-      o: bind
