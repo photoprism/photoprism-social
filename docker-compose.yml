@@ -1,0 +1,105 @@
+version: '3'
+
+services:
+  postgresql:
+    container_name: postgresql
+    image: docker.io/postgres:15.3
+    env_file: mastodon.prod.env
+    restart: always
+    # shm_size: 256mb
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres']
+    volumes:
+      - postgresql:/var/lib/postgresql/data
+    networks:
+      - internal_network
+
+  redis:
+    container_name: redis
+    image: docker.io/redis:7.0.11
+    restart: always
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+    volumes:
+      - redis:/data
+    networks:
+      - internal_network
+
+  web:
+    container_name: mastodon-web
+    image: ghcr.io/mastodon/mastodon:v4.1.2@sha256:6b18e6d0eda476397d48cc36ac040b5da9c73503e374708a815a7f76db740576
+    env_file:
+      - mastodon.prod.env
+    command: bash -c "bundle exec puma -C config/puma.rb"
+    restart: always
+    depends_on:
+      - postgresql
+      - redis
+    ports:
+      - '127.0.0.1:3000:3000'
+    networks:
+      - internal_network
+      - external_network
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:3000/health || exit 1']
+    volumes:
+      - uploads:/mastodon/public/system
+
+  streaming:
+    container_name: mastodon-streaming
+    image: ghcr.io/mastodon/mastodon:v4.1.2@sha256:6b18e6d0eda476397d48cc36ac040b5da9c73503e374708a815a7f76db740576
+    env_file:
+      - mastodon.prod.env
+    command: node ./streaming
+    restart: always
+    depends_on:
+      - postgresql
+      - redis
+    ports:
+      - '127.0.0.1:4000:4000'
+    networks:
+      - internal_network
+      - external_network
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:4000/api/v1/streaming/health || exit 1']
+
+  sidekiq:
+    container_name: mastodon-sidekiq
+    image: ghcr.io/mastodon/mastodon:v4.1.2@sha256:6b18e6d0eda476397d48cc36ac040b5da9c73503e374708a815a7f76db740576
+    env_file:
+      - mastodon.prod.env
+    command: bundle exec sidekiq -c 25 -q default,8 -q push,6 -q ingress,4 -q mailers,2 -q pull -q scheduler
+    restart: always
+    depends_on:
+      - postgresql
+      - redis
+      - web
+    networks:
+      - internal_network
+      - external_network
+    healthcheck:
+      test: ['CMD-SHELL', "ps aux | grep '[s]idekiq\ 6' || false"]
+    volumes:
+      - uploads:/mastodon/public/system
+
+networks:
+  external_network:
+  internal_network:
+    internal: true
+
+volumes:
+  postgresql:
+    driver_opts:
+      type: none
+      device: /opt/mastodon/database/postgresql
+      o: bind
+  redis:
+    driver_opts:
+      type: none
+      device: /opt/mastodon/database/redis
+      o: bind
+  uploads:
+    driver_opts:
+      type: none
+      device: /opt/mastodon/web/system
+      o: bind
