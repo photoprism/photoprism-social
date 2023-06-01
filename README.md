@@ -1,6 +1,7 @@
-# photoprism-social
+# Docker Hosting Environment for Mastodon
 
-## Mastodon bootstrap
+## Setup Instructions
+
 ```sh
 # 1. Fill out mastodon.prod.env
 # 2.
