@@ -40,6 +40,15 @@ services:
     networks:
       - internal_network
       - external_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.photoprism-social.loadbalancer.server.port=3000"
+      - "traefik.http.services.photoprism-social.loadbalancer.server.scheme=http"
+      - "traefik.http.routers.photoprism-social.entrypoints=websecure"
+      - "traefik.http.routers.photoprism-social.rule=Host(`localssl.dev`, `app.localssl.dev`)"
+      - "traefik.http.routers.photoprism-social.tls.domains[0].main=localssl.dev"
+      - "traefik.http.routers.photoprism-social.tls.domains[0].sans=*.localssl.dev"
+      - "traefik.http.routers.photoprism-social.tls=true"
     healthcheck:
       test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:3000/health || exit 1']
     volumes:
@@ -111,6 +120,15 @@ services:
       - /opt/mastodon/database/elasticsearch:/usr/share/elasticsearch/data
     networks:
       - internal_network
+  traefik:
+    image: photoprism/traefik:latest
+    ports:
+      - "80:80" # HTTP (redirects to HTTPS)
+      - "443:443" # HTTPS (required)
+    labels:
+      - "traefik.enable=true"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock" # enables Traefik to watch services
 
 networks:
   external_network:

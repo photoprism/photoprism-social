@@ -24,8 +24,4 @@ sudo docker exec -it mastodon-web /bin/bash
 bin/tootctl accounts create jahanson --email joe@veri.dev --confirmed --role Owner
 bin/tootctl settings registrations close
 
-# Reverse Proxy - Nginx
-# Generate yourself a custom dhparam
-sudo openssl dhparam -dsaparam -out /etc/ssl/certs/dhparam.pem 4096
-# Place the mastodon.nginx.conf in either the nginx /etc/nginx/conf.d folder or available-sites depending on which distro you're on and start nginx up!
 ```
